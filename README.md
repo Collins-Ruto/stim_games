@@ -1,68 +1,100 @@
-# Carbon Credit Exchange Sui Module
+# Stim Games Platform: Module Documentation
 
-This module implements a carbon credit trading platform on the Sui blockchain. It allows users to register carbon credits, list them for sale, place bids on listings, and accept bids to transfer ownership.
+## Overview
 
-**Key Features:**
+This module, `stim_games::stim_games`, establishes a decentralized game store, enabling publishers to sell game licenses and users to buy, store, and view their purchased licenses. Additional features like promo codes, fee management, and a licensing verification mechanism are built in, providing a comprehensive structure for managing a blockchain-based game store.
 
-* **Carbon Credit Registration:** Users can register new carbon credits with unique identifiers, quantities, and metadata.
-* **Listing Management:** Owners can list their carbon credits for sale, setting a base price and activating/deactivating listings.
-* **Bidding System:** Users can place bids on active listings, specifying the amount of SUI tokens they are willing to pay.
-* **Bid Acceptance:** Listing owners can accept bids, transferring ownership of the carbon credit and receiving the bid amount.
-* **Bid Withdrawal:** Bidders can withdraw their bids if they haven't been accepted.
+### Components
 
-**Data Structures:**
+#### Struct Definitions
 
-* **Contract:** Represents the overall carbon credit exchange contract with:
-  * `id`: Unique identifier for the contract.
-  * `bids`: Vector of all bids placed on the platform.
-  * `listings`: Vector of all active carbon credit listings.
-  * `escrow`: Balance of SUI tokens held in escrow for bids.
-* **CarbonCredit:** Represents a carbon credit with:
-  * `id`: Unique identifier for the carbon credit.
-  * `owner`: Address of the current owner.
-  * `quantity`: Number of carbon credits.
-  * `metadata`: Additional information about the carbon credit.
-* **Listing:** Represents a listed carbon credit for sale with:
-  * `id`: Unique identifier for the listing.
-  * `credit_id`: ID of the carbon credit being listed.
-  * `owner`: Address of the listing owner.
-  * `base_price`: Minimum price for the carbon credit.
-  * `active`: Status of the listing (active or inactive).
-* **Bid:** Represents a bid on a carbon credit with:
-  * `id`: Unique identifier for the bid.
-  * `credit_id`: ID of the carbon credit being bid on.
-  * `bidder`: Address of the bidder.
-  * `amount`: Amount of SUI tokens offered in the bid.
-  * `is_claimed`: Whether the bid amount has been claimed.
+1. **Platform**: Represents the game platform, with attributes for owner, fee percentage, and accumulated revenue.
 
-**Error Codes:**
+2. **GameStore**: A container for games and promotional codes, with features for owner management.
 
-* `ENotOwner (0)`: Indicates the caller is not authorized to perform the action on the specified object (e.g., listing, bid).
-* `EInactiveListing (2)`: Indicates the attempted action involves an inactive listing.
-* `EInsufficientBid (3)`: Indicates the bid amount is less than the base price of the listing.
-* `EInvalidBid (4)`: Indicates the bid is associated with a different carbon credit.
-* `EClaimedBid (5)`: Indicates the bid amount has already been claimed.
-* `ENoListings (6)`: Indicates there are no active listings on the contract.
+3. **Game**: Contains details of a game, including name, publisher, price, revenue, and a list of issued licenses.
 
-**Functions:**
+4. **UserAccount**: Manages user-specific information such as balance and owned licenses.
 
-* **init (ctx: &mut TxContext):** Initializes a new carbon credit exchange contract.
-* **register_carbon_credit (owner: address, quantity: u64, metadata: String, ctx: &mut TxContext): CarbonCredit:** Registers a new carbon credit and returns its details.
-* **list_carbon_credit (contract: &mut Contract, credit: &mut CarbonCredit, base_price: u64, ctx: &mut TxContext):** Lists a carbon credit for sale on the contract.
-* **deactivate_listing (listing: &mut Listing, ctx: &mut TxContext):** Deactivates a listed carbon credit.
-* **get_listings (contract: &Contract): vector<ID>:** Returns a vector of IDs for all active listings on the contract.
-* **place_bid (contract: &mut Contract, listing: &Listing, amount: Coin<SUI>, ctx: &mut TxContext):** Places a bid on an active listing.
-* **accept_bid (contract: &mut Contract, listing: &mut Listing, bid: &mut Bid, credit: &mut CarbonCredit, ctx: &mut TxContext):** Accepts a bid, transferring ownership of the carbon credit and receiving the bid amount.
-* **withdraw_bid (contract: &mut Contract, bid: &mut Bid, ctx: &mut TxContext):** Allows a bidder to withdraw their bid if it hasn't been accepted.
+5. **License**: Represents ownership of a purchased game, with details like purchase date and gifting information.
 
-**Additional Notes:**
+6. **Discount**: Details for promotional codes, including discount rate, expiry, and usage tracking.
 
-* This module utilizes Sui Move concepts like objects, vectors, and balances.
-* The code includes error handling and access control mechanisms.
-* For further details and usage examples, refer to the specific implementation within the `carbon_credit_exchange` module.
+#### Error Codes
+
+- **ENotOwner (0)**: Triggered when an action is attempted by a non-owner.
+- **EGameNotFound (1)**: Raised if a game is not found in the store.
+- **EUserNotFound (2)**: Raised when a user account is not found.
+- **EInsufficientFunds (3)**: Raised if the user lacks enough funds to purchase a license.
+- **EGameAlreadyExists (4)**: Raised when trying to add a game that already exists.
+- **EGameSoldOut (5)**: Raised when a game reaches its maximum licenses.
+- **EInvalidPromoCode (6)**: Raised if a promo code is invalid or expired.
+
+---
+
+### Functions
+
+#### Platform and Store Management
+
+- **initialize_platform**: Initializes the platform with a set fee percentage for transactions. Only the platform owner can use this.
+  
+- **create_store**: Creates a game store for managing games and promotional codes. The sender of the transaction becomes the store owner.
+
+#### User Account Management
+
+- **create_user_account**: Sets up a new user account for purchasing licenses.
+
+#### Game Management
+
+- **add_game**: Allows store owners to add new games, specifying name, price, description, and optional max licenses.
+
+- **add_promo_code**: Enables store owners to add promotional codes with defined discounts and usage restrictions.
+
+#### License Purchase and Payment
+
+- **purchase_license**: Manages the purchase of a game license, including promo code application, fund deduction, platform fees, and license issuance. Licenses are only issued if sufficient funds are available, and the game is not sold out.
+
+#### User Interaction
+
+- **view_user_licenses**: Lists all licenses owned by the user.
+
+- **view_license**: Provides details of a specific license owned by the user.
+
+#### Game Catalog
+
+- **view_game_catalog**: Displays all games available for purchase. Filters out sold-out games if `max_licenses` is defined.
+
+#### License Verification and Revenue Withdrawal
+
+- **verify_license**: Allows for the verification of a user’s license by the license holder.
+
+- **withdraw_revenue**: Enables the game publisher to withdraw accumulated revenue for a particular game.
+
+---
+
+### How to Use
+
+1. **Initialize Platform**: Set up the platform with a fee percentage, enabling revenue collection for game sales.
+
+2. **Create Store**: Owners create a store, which will manage the available games and promotional codes.
+
+3. **Add Games and Promo Codes**: Owners add games with prices and descriptions. Promo codes may be added to incentivize purchases.
+
+4. **User Registration**: Users create accounts to track their purchases and manage licenses.
+
+5. **Purchasing and Licensing**: Users purchase licenses, with promo codes if available. Platform fees are automatically deducted and transferred to the platform’s revenue.
+
+6. **License Verification**: Purchased licenses can be verified by the owner and store, ensuring authenticity and preventing unauthorized transfers.
+
+### Key Features
+
+- **Decentralized Ownership**: Owners have full control over store creation, game additions, and revenue withdrawal.
+- **Promotional Code System**: Promo codes offer users discounts, which store owners can configure with usage limits and expiration.
+- **Revenue Collection and Fee Management**: Platform fees are automatically collected on each purchase, providing a steady revenue stream for the platform.
+- **License Verification**: Verifiable licenses increase transparency and trust, ensuring that only legitimate users access purchased content.
 
 **Dependencies:**
 
-* This module requires the `sui` and `candid` crates for Sui blockchain interaction and data serialization.
+- This module requires the `sui` and `candid` crates for Sui blockchain interaction and data serialization.
 
 get more info at [dacade](https://dacade.org/communities/sui/challenges/19885730-fb83-477a-b95b-4ab265b61438/learning-modules/fc2e67a1-520d-4fae-a318-38414babc803)
