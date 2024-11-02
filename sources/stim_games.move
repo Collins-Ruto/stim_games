@@ -1,9 +1,13 @@
 module stim_games::stim_games {
-    use sui::coin::{Self, Coin};
+
+    use sui::coin::{self, Coin};
     use sui::sui::SUI;
-    use sui::balance::{Self, Balance}; 
-    use sui::linked_table::{Self, LinkedTable};
+    use sui::balance::{self, Balance};
+    use sui::linked_table::{self, LinkedTable};
+    use sui::tx_context::{self, TxContext};
+    use std::option::{self, Option};
     use std::string::String;
+    use std::vector;
 
     // Error codes
     const ENotOwner: u64 = 0;
@@ -132,7 +136,7 @@ module stim_games::stim_games {
         ctx: &mut TxContext
     ) {
         assert!(tx_context::sender(ctx) == store.owner, ENotOwner);
-        
+
         let discount = Discount {
             promo_code: code,
             discount_percentage,
@@ -140,6 +144,7 @@ module stim_games::stim_games {
             max_uses,
             times_used: 0
         };
+
         linked_table::push_back(&mut store.promo_codes, code, discount);
     }
 
@@ -153,8 +158,8 @@ module stim_games::stim_games {
         payment: Coin<SUI>,
         ctx: &mut TxContext
     ) {
-        assert!(linked_table::contains(&store.games, game_name), EGameNotFound); // Check existence first
-        let game = linked_table::borrow_mut(&mut store.games, game_name); // Then borrow mutably
+        assert!(linked_table::contains(&store.games, game_name), EGameNotFound);
+        let game = linked_table::borrow_mut(&mut store.games, game_name);
 
         // Check if sold out
         if (option::is_some(&game.max_licenses)) {
@@ -175,7 +180,11 @@ module stim_games::stim_games {
         let payment_value = coin::value(&payment);
         assert!(payment_value >= final_price, EInsufficientFunds);
 
-        // Process payment
+        // Exclusive access to balance and payment processing
+        let user_balance = mutate::move(user, |user| {
+            balance::split(&mut user.balance, final_price)
+        });
+
         let mut coin_balance = coin::into_balance(payment);
         let platform_fee = balance::split(&mut coin_balance, final_price * platform.fee_percentage / 100);
         balance::join(&mut platform.revenue, platform_fee);
@@ -211,21 +220,20 @@ module stim_games::stim_games {
     public fun view_license(user: &UserAccount, game_name: String, ctx: &TxContext): &License {
         assert!(tx_context::sender(ctx) == user.user_address, EUserNotFound);
         let license_ref = linked_table::borrow(&user.licenses, game_name);
-        license_ref // Return a reference to the License
+        license_ref
     }
 
     // View all available games
     public fun view_game_catalog(store: &GameStore): vector<String> {
         let mut catalog = vector::empty();
-        let mut key_i = linked_table::front(&store.games); // Get the first key in the LinkedTable
+        let mut key_i = linked_table::front(&store.games);
         while (option::is_some(key_i)) {
-            let k = *option::borrow(key_i); // Get the current key
-            let game = linked_table::borrow(&store.games, k); // Borrow the game using the key
-            if (!option::is_some(&game.max_licenses) || 
-                vector::length(&game.licenses) < *option::borrow(&game.max_licenses)) {
+            let k = *option::borrow(key_i);
+            let game = linked_table::borrow(&store.games, k);
+            if (!option::is_some(&game.max_licenses) || vector::length(&game.licenses) < *option::borrow(&game.max_licenses)) {
                 vector::push_back(&mut catalog, k);
             };
-            key_i = linked_table::next(&store.games, k); // Move to the next key
+            key_i = linked_table::next(&store.games, k);
         };
         catalog
     }
@@ -239,10 +247,8 @@ module stim_games::stim_games {
     ): bool {
         let game = linked_table::borrow(&store.games, game_name);
         let owner = tx_context::sender(ctx);
-        
-        license.game_name == game_name && 
-        license.owner == owner && 
-        vector::contains(&game.licenses, &owner)
+
+        license.game_name == game_name && license.owner == owner && vector::contains(&game.licenses, &owner)
     }
 
     // Withdraw revenue for publisher
@@ -253,7 +259,7 @@ module stim_games::stim_games {
     ): Coin<SUI> {
         let game = linked_table::borrow_mut(&mut store.games, game_name);
         assert!(tx_context::sender(ctx) == game.publisher, ENotOwner);
-        
+
         let amount = balance::value(&game.revenue);
         let revenue = balance::split(&mut game.revenue, amount);
         coin::from_balance(revenue, ctx)
