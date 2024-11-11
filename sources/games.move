@@ -142,7 +142,6 @@ module stim_games::games {
         discount_percentage: u64,
         expiry: u64,
         max_uses: u64,
-        ctx: &mut TxContext
     ) {
         assert!(cap.`for` == object::id(store), ENotOwner);
         
