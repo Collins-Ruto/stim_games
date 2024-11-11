@@ -22,6 +22,11 @@ module stim_games::games {
         revenue: Balance<SUI>
     }
 
+    public struct PlatformCap has key {
+        id: UID,
+        `for`: ID
+    }
+
     public struct GameStore has key {
         id: UID,
         owner: address,
@@ -69,13 +74,20 @@ module stim_games::games {
     }
 
     // Initialize platform
-    public fun initialize_platform(fee_percentage: u64, ctx: &mut TxContext) {
+    fun init (ctx: &mut TxContext) {
         let platform = Platform {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
-            fee_percentage,
+            fee_percentage: 0,
             revenue: balance::zero()
         };
+
+        let cap = PlatformCap {
+            id: object::new(ctx),
+            `for`: object::id(&platform)
+        };
+
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(platform);
     }
 
@@ -271,5 +283,30 @@ module stim_games::games {
         let amount = balance::value(&game.revenue);
         let revenue = balance::split(&mut game.revenue, amount);
         coin::from_balance(revenue, ctx)
+    }
+
+    public fun set_fee(
+        cap: &PlatformCap,
+        store: &mut Platform,
+        fee: u64,
+    ) {
+        assert!(cap.`for` == object::id(store), ENotOwner);
+        store.fee_percentage = fee;
+    }
+
+    public fun withdraw(
+        cap: &PlatformCap,
+        store: &mut Platform,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
+        assert!(cap.`for` == object::id(store), ENotOwner);
+        let balance = balance::withdraw_all(&mut store.revenue);
+        let coin = coin::from_balance(balance, ctx);
+        coin
+    }
+
+    #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(ctx);
     }
 }

@@ -7,7 +7,7 @@ module stim_games::test_games {
     use std::string::{Self};
 
     use stim_games::helpers::init_test_helper;
-    use stim_games::games::{Self as games, Platform, GameStore, GameStoreCap, UserAccount};
+    use stim_games::games::{Self as games, Platform, GameStore, PlatformCap, GameStoreCap, UserAccount};
 
     const ADMIN: address = @0xe;
     const TEST_ADDRESS1: address = @0xee;
@@ -22,8 +22,14 @@ module stim_games::test_games {
         // create the voting shared object 
         next_tx(scenario, TEST_ADDRESS1);
         {
+            let cap = ts::take_from_sender<PlatformCap>(scenario);
+            let mut shared = ts::take_shared<Platform>(scenario);
+
             let fee: u64 = 100;
-            games::initialize_platform(fee, ts::ctx(scenario));
+            games::set_fee(&cap, &mut shared, fee);
+
+            ts::return_to_sender(scenario, cap);
+            ts::return_shared(shared);
         };
 
         next_tx(scenario, TEST_ADDRESS1);
@@ -116,8 +122,14 @@ module stim_games::test_games {
         // create the voting shared object 
         next_tx(scenario, TEST_ADDRESS1);
         {
+            let cap = ts::take_from_sender<PlatformCap>(scenario);
+            let mut shared = ts::take_shared<Platform>(scenario);
+
             let fee: u64 = 100;
-            games::initialize_platform(fee, ts::ctx(scenario));
+            games::set_fee(&cap, &mut shared, fee);
+
+            ts::return_to_sender(scenario, cap);
+            ts::return_shared(shared);
         };
 
         next_tx(scenario, TEST_ADDRESS1);
