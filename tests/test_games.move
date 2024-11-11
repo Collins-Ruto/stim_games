@@ -1,16 +1,13 @@
 #[test_only]
 module stim_games::test_games {
-    use sui::test_scenario::{Self as ts, next_tx, ctx};
-    use sui::test_utils::{assert_eq};
-    use sui::coin::{Coin, mint_for_testing};
-    use sui::clock::{Clock, Self};
+    use sui::test_scenario::{Self as ts, next_tx};
+    use sui::coin::{mint_for_testing};
     use sui::sui::{SUI};
 
     use std::string::{Self};
-    use std::debug::print;
 
     use stim_games::helpers::init_test_helper;
-    use stim_games::games::{Self as games, Platform, GameStore, GameStoreCap, Game, UserAccount, License};
+    use stim_games::games::{Self as games, Platform, GameStore, GameStoreCap, UserAccount};
 
     const ADMIN: address = @0xe;
     const TEST_ADDRESS1: address = @0xee;
@@ -186,5 +183,4 @@ module stim_games::test_games {
         
         ts::end(scenario_test);
     }
-
 }

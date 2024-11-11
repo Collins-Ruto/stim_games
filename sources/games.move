@@ -244,11 +244,13 @@ module stim_games::games {
 
     // Verify game license
     public fun verify_license(
+        cap: &GameStoreCap,
         store: &GameStore,
         game_name: String,
         license: &License,
         ctx: &TxContext
     ): bool {
+        assert!(cap.`for` == object::id(store), ENotOwner);
         let game = linked_table::borrow(&store.games, game_name);
         let owner = tx_context::sender(ctx);
         
@@ -259,13 +261,13 @@ module stim_games::games {
 
     // Withdraw revenue for publisher
     public fun withdraw_revenue(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         game_name: String,
         ctx: &mut TxContext
     ): Coin<SUI> {
+        assert!(cap.`for` == object::id(store), ENotOwner);
         let game = linked_table::borrow_mut(&mut store.games, game_name);
-        assert!(tx_context::sender(ctx) == game.publisher, ENotOwner);
-        
         let amount = balance::value(&game.revenue);
         let revenue = balance::split(&mut game.revenue, amount);
         coin::from_balance(revenue, ctx)
