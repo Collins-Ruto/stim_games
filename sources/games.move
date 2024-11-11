@@ -1,4 +1,4 @@
-module stim_games::stim_games {
+module stim_games::games {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::balance::{Self, Balance}; 
