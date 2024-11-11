@@ -29,6 +29,11 @@ module stim_games::games {
         promo_codes: LinkedTable<String, Discount>
     }
 
+    public struct GameStoreCap has key {
+        id: UID,
+        `for`: ID
+    }
+
     public struct Game has key, store {
         id: UID,
         name: String,
@@ -82,6 +87,12 @@ module stim_games::games {
             games: linked_table::new(ctx),
             promo_codes: linked_table::new(ctx)
         };
+
+        let cap = GameStoreCap {
+            id: object::new(ctx),
+            `for`: object::id(&store)
+        };
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(store);
     }
 
@@ -98,6 +109,7 @@ module stim_games::games {
 
     // Add a new game to the store
     public fun add_game(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         name: String,
         price: u64,
@@ -105,7 +117,7 @@ module stim_games::games {
         max_licenses: Option<u64>,
         ctx: &mut TxContext
     ) {
-        assert!(tx_context::sender(ctx) == store.owner, ENotOwner);
+        assert!(cap.`for` == object::id(store), ENotOwner);
         assert!(!linked_table::contains(&store.games, name), EGameAlreadyExists);
 
         let game = Game {
@@ -124,6 +136,7 @@ module stim_games::games {
 
     // Add promo code
     public fun add_promo_code(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         code: String,
         discount_percentage: u64,
@@ -131,7 +144,7 @@ module stim_games::games {
         max_uses: u64,
         ctx: &mut TxContext
     ) {
-        assert!(tx_context::sender(ctx) == store.owner, ENotOwner);
+        assert!(cap.`for` == object::id(store), ENotOwner);
         
         let discount = Discount {
             promo_code: code,
