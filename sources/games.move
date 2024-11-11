@@ -1,4 +1,4 @@
-module stim_games::stim_games {
+module stim_games::games {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::balance::{Self, Balance}; 
@@ -22,11 +22,21 @@ module stim_games::stim_games {
         revenue: Balance<SUI>
     }
 
+    public struct PlatformCap has key {
+        id: UID,
+        `for`: ID
+    }
+
     public struct GameStore has key {
         id: UID,
         owner: address,
         games: LinkedTable<String, Game>,
         promo_codes: LinkedTable<String, Discount>
+    }
+
+    public struct GameStoreCap has key {
+        id: UID,
+        `for`: ID
     }
 
     public struct Game has key, store {
@@ -64,13 +74,20 @@ module stim_games::stim_games {
     }
 
     // Initialize platform
-    public fun initialize_platform(fee_percentage: u64, ctx: &mut TxContext) {
+    fun init (ctx: &mut TxContext) {
         let platform = Platform {
             id: object::new(ctx),
             owner: tx_context::sender(ctx),
-            fee_percentage,
+            fee_percentage: 0,
             revenue: balance::zero()
         };
+
+        let cap = PlatformCap {
+            id: object::new(ctx),
+            `for`: object::id(&platform)
+        };
+
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(platform);
     }
 
@@ -82,6 +99,12 @@ module stim_games::stim_games {
             games: linked_table::new(ctx),
             promo_codes: linked_table::new(ctx)
         };
+
+        let cap = GameStoreCap {
+            id: object::new(ctx),
+            `for`: object::id(&store)
+        };
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(store);
     }
 
@@ -98,6 +121,7 @@ module stim_games::stim_games {
 
     // Add a new game to the store
     public fun add_game(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         name: String,
         price: u64,
@@ -105,7 +129,7 @@ module stim_games::stim_games {
         max_licenses: Option<u64>,
         ctx: &mut TxContext
     ) {
-        assert!(tx_context::sender(ctx) == store.owner, ENotOwner);
+        assert!(cap.`for` == object::id(store), ENotOwner);
         assert!(!linked_table::contains(&store.games, name), EGameAlreadyExists);
 
         let game = Game {
@@ -124,14 +148,14 @@ module stim_games::stim_games {
 
     // Add promo code
     public fun add_promo_code(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         code: String,
         discount_percentage: u64,
         expiry: u64,
         max_uses: u64,
-        ctx: &mut TxContext
     ) {
-        assert!(tx_context::sender(ctx) == store.owner, ENotOwner);
+        assert!(cap.`for` == object::id(store), ENotOwner);
         
         let discount = Discount {
             promo_code: code,
@@ -232,11 +256,13 @@ module stim_games::stim_games {
 
     // Verify game license
     public fun verify_license(
+        cap: &GameStoreCap,
         store: &GameStore,
         game_name: String,
         license: &License,
         ctx: &TxContext
     ): bool {
+        assert!(cap.`for` == object::id(store), ENotOwner);
         let game = linked_table::borrow(&store.games, game_name);
         let owner = tx_context::sender(ctx);
         
@@ -247,15 +273,40 @@ module stim_games::stim_games {
 
     // Withdraw revenue for publisher
     public fun withdraw_revenue(
+        cap: &GameStoreCap,
         store: &mut GameStore,
         game_name: String,
         ctx: &mut TxContext
     ): Coin<SUI> {
+        assert!(cap.`for` == object::id(store), ENotOwner);
         let game = linked_table::borrow_mut(&mut store.games, game_name);
-        assert!(tx_context::sender(ctx) == game.publisher, ENotOwner);
-        
         let amount = balance::value(&game.revenue);
         let revenue = balance::split(&mut game.revenue, amount);
         coin::from_balance(revenue, ctx)
+    }
+
+    public fun set_fee(
+        cap: &PlatformCap,
+        store: &mut Platform,
+        fee: u64,
+    ) {
+        assert!(cap.`for` == object::id(store), ENotOwner);
+        store.fee_percentage = fee;
+    }
+
+    public fun withdraw(
+        cap: &PlatformCap,
+        store: &mut Platform,
+        ctx: &mut TxContext
+    ): Coin<SUI> {
+        assert!(cap.`for` == object::id(store), ENotOwner);
+        let balance = balance::withdraw_all(&mut store.revenue);
+        let coin = coin::from_balance(balance, ctx);
+        coin
+    }
+
+    #[test_only]
+    public fun test_init(ctx: &mut TxContext) {
+        init(ctx);
     }
 }
